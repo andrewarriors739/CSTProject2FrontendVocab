@@ -1,56 +1,50 @@
 import React, { useState, useEffect } from "react";
-import { View, FlatList, StyleSheet, Text, TouchableOpacity } from "react-native";
+import { View, FlatList, StyleSheet, Text, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
-import { useSQLiteContext } from "expo-sqlite";
 import { useNavigation } from "@react-navigation/native";
+import apiClient from "../api/apiClient";
 
-const WordListPage = ({ route }) => {
-  const [loading, setLoading] = useState(true);
-  const [listName, setListName] = useState<string | null>(null);
-  const [wordList, setWordList] = useState([]);
+export default function WordListPage({ route }) {
   const navigation = useNavigation();
   const { userID, listID } = route.params;
-  const db = useSQLiteContext();
+  const [wordList, setWordList] = useState([]);
+  const [listName, setListName] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (db && userID && listID) {
-      loadWordList();
-    }
-  }, [db, userID, listID]);
+    const loadWordList = async () => {
+      try {
+        const listResp = await apiClient.get(`/vocabLists/${listID}`);
+        setListName(listResp.data.listName);
 
-  const loadWordList = async () => {
-    try {
-      // Debugging
-      // console.log(`UserID: ${userID} and ListID: ${listID}`);
-      const existingList = await db.getFirstAsync("SELECT * FROM vocabLists WHERE userID = ? AND listID = ?", [userID, listID]);
-      setListName(existingList.listName);
+        const wordsResp = await apiClient.get(`/wordInList?userID=${userID}&listID=${listID}`);
+        setWordList(wordsResp.data);
+      } catch (error) {
+        Alert.alert("Error loading words", error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      const vocabWords = await db.getAllAsync("SELECT * FROM wordInList WHERE userID = ? AND listID = ?", [userID, `${listID}`]);
-      setWordList(vocabWords);
-      // console.log("Vocab Words:", vocabWords); // Debugging Purposes
-    } catch (error) {
-      console.error("Error loading vocab words:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    loadWordList();
+  }, [userID, listID]);
 
   return (
     <SafeAreaProvider>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("VocabListPage", { userID })}>
-          <Text style={styles.backButtonText}>&#8249;- Back</Text>
+          <Text style={styles.backButtonText}>‹- Back</Text>
         </TouchableOpacity>
         <View style={styles.titleContainer}>
           <Text style={styles.title}>{listName}</Text>
         </View>
-        {/* Added for center alignment */}
         <View style={styles.rightContent} />
       </View>
 
       <SafeAreaView style={styles.container}>
-        {/* Word List Section */}
-        {wordList.length === 0 ? (
+        {loading ? (
+          <Text>Loading words...</Text>
+        ) : wordList.length === 0 ? (
           <Text style={styles.noWordsText}>No words added yet</Text>
         ) : (
           <FlatList
@@ -67,71 +61,28 @@ const WordListPage = ({ route }) => {
       </SafeAreaView>
     </SafeAreaProvider>
   );
-};
+}
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
     backgroundColor: "white",
-    borderBottomColor: '#ddd',
-    justifyContent: 'space-between',
+    borderBottomColor: "#ddd",
+    justifyContent: "space-between",
   },
-  backButton: {
-    padding: 8,
-  },
-  backButtonText: {
-    color: "blue",
-  },
-  titleContainer: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  rightContent: {
-    width: 50,
-    alignItems: 'flex-end',
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  noWordsText: {
-    textAlign: "center",
-    color: "#888",
-    fontSize: 16,
-  },
-  wordItem: {
-    padding: 10,
-    marginVertical: 5,
-    backgroundColor: "#e8e8e8",
-    borderRadius: 5,
-  },
-  word: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  definition: {
-    fontSize: 16,
-    fontStyle: "italic",
-  },
-  item: {
-    padding: 20,
-    marginVertical: 8,
-    marginHorizontal: 5,
-  },
+  backButton: { padding: 8 },
+  backButtonText: { color: "blue" },
+  titleContainer: { flex: 1, alignItems: "center" },
+  title: { fontSize: 18, fontWeight: "bold" },
+  rightContent: { width: 50, alignItems: "flex-end" },
+  container: { flex: 1, paddingHorizontal: 16 },
+  noWordsText: { textAlign: "center", color: "#888", fontSize: 16 },
+  wordItem: { padding: 10, marginVertical: 5, backgroundColor: "#e8e8e8", borderRadius: 5 },
+  word: { fontSize: 18, fontWeight: "bold" },
+  definition: { fontSize: 16, fontStyle: "italic" },
 });
 
-export default WordListPage;
