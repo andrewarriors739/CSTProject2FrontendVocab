@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Button, StyleSheet, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import apiClient from "../apiClient";
+import apiClient from "../api/apiClient";
+
 
 export default function CreateAccount() {
   const navigation = useNavigation();
