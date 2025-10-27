@@ -82,6 +82,14 @@ const LandingScreen = ({ route }) => {
           <Text style={styles.saveButtonText}>✅ Save Word to History</Text>
         </TouchableOpacity>
 
+{/* Add this new button */}
+<TouchableOpacity 
+  style={styles.addWordButton} 
+  onPress={() => navigation.navigate("AddWords")}
+>
+  <Text style={styles.addWordButtonText}>📝 Add Your Own Word</Text>
+</TouchableOpacity>
+
         {/* ... Add navigation to lists, creation etc, unchanged here ... */}
       </View>
     </ImageBackground>
@@ -103,7 +111,19 @@ const styles = StyleSheet.create({
   refreshButton: { backgroundColor: "#FFA500", paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8, marginTop: 10 },
   refreshButtonText: { fontSize: 16, color: "#fff", fontWeight: "bold" },
   saveButton: { backgroundColor: "#4CAF50", paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8, marginTop: 10 },
-  saveButtonText: { fontSize: 16, color: "#fff", fontWeight: "bold" },
+  saveButtonText: { fontSize: 16, color: "#fff", fontWeight: "bold"}, 
+    addWordButton: { 
+      backgroundColor: "#2196F3", 
+      paddingVertical: 10, 
+      paddingHorizontal: 20, 
+      borderRadius: 8, 
+      marginTop: 10 
+    },
+    addWordButtonText: { 
+      fontSize: 16, 
+      color: "#fff", 
+      fontWeight: "bold" 
+    },
 });
 
 export default LandingScreen;

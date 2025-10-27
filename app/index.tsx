@@ -14,6 +14,7 @@ import ResetPassword from "./screens/ResetPassword";
 import ListCreation from "./screens/ListCreation";
 import WordListPage from "./screens/wordList";
 import PickList from "./screens/PickList";
+import AddWords from "./screens/AddWords"
 
 const initDB = async (db: SQLiteDatabase) => {
   try {
@@ -86,6 +87,7 @@ export default function AppNavigator() {
         <Stack.Screen name="WordListPage" component={WordListPage} options={{ headerShown: false }} />
         <Stack.Screen name="ListCreation" component={ListCreation} options={{ headerShown: false }} />
         <Stack.Screen name="PickList" component={PickList} options={{ headerShown: false }} />
+        <Stack.Screen name="AddWords" component={AddWords} options={{ title: "Add Words" }} />
       </Stack.Navigator>
     </SQLiteProvider>
   );
