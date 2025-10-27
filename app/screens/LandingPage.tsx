@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ImageBackground, Alert } from "react-native";
 import wordList from "../../assets/advanced_words.json";
 import { useNavigation } from "@react-navigation/native";
-import apiClient from "../apiClient";
+import apiClient from "../api/apiClient";
+
 
 const LandingScreen = ({ route }) => {
   const [dailyWord, setDailyWord] = useState(null);
