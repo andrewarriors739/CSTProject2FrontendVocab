@@ -1,50 +1,38 @@
 import React, { useState } from "react";
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-} from "react-native";
+import { StyleSheet, View, Text, TouchableOpacity, TextInput, Alert } from "react-native";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, RouteProp, NavigationProp } from "@react-navigation/native";
 import apiClient from "../api/apiClient";
+import { RootStackParamList } from "../navigation/types"; // <-- import shared type
 
-export default function ListCreation({ route }) {
+type ListCreationRoute = RouteProp<RootStackParamList, "ListCreation">;
+
+export default function ListCreation({ route }: { route: ListCreationRoute }) {
   const [listName, setListName] = useState("");
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { userID } = route.params;
 
   const handleListCreation = async () => {
-    if (!listName) {
+    if (!listName.trim()) {
       Alert.alert("Error", "Please enter a list name.");
       return;
     }
+
     try {
-      const response = await apiClient.post("/vocabLists", {
-        userID,
-        listName,
-      });
-      if (response.status === 201) {
-        Alert.alert("List created successfully");
-        navigation.goBack();
-      } else {
-        Alert.alert("Failed to create list");
-      }
-    } catch (error) {
-      Alert.alert("Error", error.message);
+      // POST /api/users/{userId}/lists
+      await apiClient.post(`/api/users/${userID}/lists`, { name: listName });
+      Alert.alert("Success", "List created");
+      navigation.navigate("LandingPage", { userID });
+    } catch (e: any) {
+      Alert.alert("Error", e?.message ?? "Failed to create list");
     }
   };
 
   return (
     <SafeAreaProvider>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.navigate("LandingPage", { userID })}
-        >
-          <Text style={styles.backButtonText}>‹- Back</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("LandingPage", { userID })}>
+          <Text style={styles.backButtonText}>&#8249;- Back</Text>
         </TouchableOpacity>
         <View style={styles.titleContainer}>
           <Text style={styles.title}>Create a New Vocab List</Text>
@@ -61,17 +49,12 @@ export default function ListCreation({ route }) {
             style={styles.textInput}
           />
         </View>
+
         <View style={{ flex: 1, flexDirection: "row", gap: 20 }}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={[styles.button, { backgroundColor: "red" }]}
-          >
+          <TouchableOpacity onPress={() => navigation.navigate("LandingPage", { userID })} style={[styles.button, { backgroundColor: "red" }]}>
             <Text style={styles.buttonText}>Cancel</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleListCreation}
-            style={[styles.button, { backgroundColor: "blue" }]}
-          >
+          <TouchableOpacity onPress={handleListCreation} style={[styles.button, { backgroundColor: "blue" }]}>
             <Text style={styles.buttonText}>Create List</Text>
           </TouchableOpacity>
         </View>
@@ -81,35 +64,12 @@ export default function ListCreation({ route }) {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    backgroundColor: "white",
-    borderBottomColor: "#ddd",
-    justifyContent: "space-between",
-  },
-  backButton: { padding: 8 },
-  backButtonText: { color: "blue" },
-  titleContainer: { flex: 1, alignItems: "center" },
-  title: { fontSize: 18, fontWeight: "bold" },
-  rightContent: { width: 50, alignItems: "flex-end" },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, backgroundColor: "white", borderBottomColor: '#ddd', justifyContent: 'space-between' },
+  backButton: { padding: 8 }, backButtonText: { color: "blue" },
+  titleContainer: { flex: 1, alignItems: 'center' }, title: { fontSize: 18, fontWeight: 'bold' },
+  rightContent: { width: 50, alignItems: 'flex-end' },
   container: { flex: 1, alignItems: "center" },
-  textInput: {
-    borderWidth: 1,
-    padding: 10,
-    width: 300,
-    borderRadius: 5,
-    borderColor: "slategray",
-  },
-  button: {
-    height: 40,
-    width: 100,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 5,
-  },
+  textInput: { borderWidth: 1, padding: 10, width: 300, borderRadius: 5, borderColor: "slategray" },
+  button: { height: 40, width: 120, alignItems: "center", justifyContent: "center", borderRadius: 5 },
   buttonText: { fontWeight: "bold", color: "white" },
 });

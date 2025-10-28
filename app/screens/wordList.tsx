@@ -1,61 +1,105 @@
-import React, { useState, useEffect } from "react";
+// app/screens/wordList.tsx
+import React, { useEffect, useState } from "react";
 import { View, FlatList, StyleSheet, Text, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, RouteProp, NavigationProp } from "@react-navigation/native";
 import apiClient from "../api/apiClient";
+import { RootStackParamList } from "../navigation/types";
 
-export default function WordListPage({ route }) {
-  const navigation = useNavigation();
+type WordListRoute = RouteProp<RootStackParamList, "WordListPage">;
+
+type Item = { id: number; term: string; definition: string };
+
+export default function WordListPage({ route }: { route: WordListRoute }) {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { userID, listID } = route.params;
-  const [wordList, setWordList] = useState([]);
-  const [listName, setListName] = useState(null);
+
   const [loading, setLoading] = useState(true);
+  const [listName, setListName] = useState<string>("");
+  const [wordList, setWordList] = useState<Item[]>([]);
 
   useEffect(() => {
-    const loadWordList = async () => {
+    const load = async () => {
       try {
-        const listResp = await apiClient.get(`/vocabLists/${listID}`);
-        setListName(listResp.data.listName);
+        // 1) Load list meta (name)
+        const meta = await apiClient.get<{ id: number; name: string }>(
+          `/api/users/${userID}/lists/${listID}`,
+          { validateStatus: () => true }
+        );
+        if (meta.status === 200) {
+          setListName(meta.data?.name ?? "Words");
+        } else if (meta.status === 204) {
+          setListName("Words");
+        } else {
+          return Alert.alert("Error", `Failed to load list (${meta.status})`);
+        }
 
-        const wordsResp = await apiClient.get(`/wordInList?userID=${userID}&listID=${listID}`);
-        setWordList(wordsResp.data);
-      } catch (error) {
-        Alert.alert("Error loading words", error.message);
+        // 2) Load items (try /items first, then fallback to /words)
+        const tryLoad = async (path: string) => {
+          const res = await apiClient.get<Item[]>(
+            `/api/users/${userID}/lists/${listID}/${path}`,
+            { validateStatus: () => true }
+          );
+          return res;
+        };
+
+        let res = await tryLoad("items");
+
+        // If your backend uses /words instead, fallback on 404/405
+        if (res.status === 404 || res.status === 405) {
+          res = await tryLoad("words");
+        }
+
+        if (res.status === 200) {
+          setWordList(Array.isArray(res.data) ? res.data : []);
+        } else if (res.status === 204) {
+          setWordList([]); // No Content -> empty list
+        } else {
+          const msg = typeof res.data === "string" ? res.data : JSON.stringify(res.data ?? {});
+          Alert.alert("Error", `Failed to load words (${res.status}): ${msg}`);
+        }
+      } catch (e: any) {
+        Alert.alert("Error", e?.message ?? "Failed to load words");
       } finally {
         setLoading(false);
       }
     };
 
-    loadWordList();
+    load();
   }, [userID, listID]);
 
   return (
     <SafeAreaProvider>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("VocabListPage", { userID })}>
-          <Text style={styles.backButtonText}>‹- Back</Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.navigate("VocabListPage", { userID })}
+        >
+          <Text style={styles.backButtonText}>&#8249;- Back</Text>
         </TouchableOpacity>
+
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>{listName}</Text>
+          <Text style={styles.title}>{listName || "Words"}</Text>
         </View>
+
         <View style={styles.rightContent} />
       </View>
 
       <SafeAreaView style={styles.container}>
         {loading ? (
-          <Text>Loading words...</Text>
+          <Text>Loading...</Text>
         ) : wordList.length === 0 ? (
           <Text style={styles.noWordsText}>No words added yet</Text>
         ) : (
           <FlatList
             data={wordList}
+            keyExtractor={(item) => String(item.id)}
             renderItem={({ item }) => (
               <View style={styles.wordItem}>
-                <Text style={styles.word}>{item.word}</Text>
+                <Text style={styles.word}>{item.term}</Text>
                 <Text style={styles.definition}>{item.definition}</Text>
               </View>
             )}
-            keyExtractor={(item) => item.wordID.toString()}
           />
         )}
       </SafeAreaView>
@@ -80,9 +124,10 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: "bold" },
   rightContent: { width: 50, alignItems: "flex-end" },
   container: { flex: 1, paddingHorizontal: 16 },
-  noWordsText: { textAlign: "center", color: "#888", fontSize: 16 },
+  noWordsText: { textAlign: "center", color: "#888", fontSize: 16, marginTop: 12 },
   wordItem: { padding: 10, marginVertical: 5, backgroundColor: "#e8e8e8", borderRadius: 5 },
   word: { fontSize: 18, fontWeight: "bold" },
   definition: { fontSize: 16, fontStyle: "italic" },
 });
+
 
