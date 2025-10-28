@@ -1,97 +1,62 @@
-import React, { useState, useEffect } from "react";
-import {
-  StyleSheet,
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  Alert,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { StyleSheet, View, Text, FlatList, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, RouteProp, NavigationProp } from "@react-navigation/native";
 import apiClient from "../api/apiClient";
+import { RootStackParamList, Word } from "../navigation/types";
 
-export default function PickList({ route }) {
-  const navigation = useNavigation();
-  const { userID, vocabHistoryID, dailyWord, definition } = route.params;
-  const [vocabLists, setVocabLists] = useState([]);
+type PickListRoute = RouteProp<RootStackParamList, "PickList">;
+type List = { id: number; name: string };
+
+export default function PickList({ route }: { route: PickListRoute }) {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const { userID, currentWord } = route.params;
   const [loading, setLoading] = useState(true);
+  const [vocabLists, setVocabLists] = useState<List[]>([]);
   const [selectedID, setSelectedID] = useState<number | null>(null);
 
   useEffect(() => {
-    const loadVocabLists = async () => {
+    const load = async () => {
       try {
-        const response = await apiClient.get(`/vocabLists?userID=${userID}`);
-        // filter out vocabHistoryID locally
-        const filteredLists = response.data.filter(
-          (list) => list.listID !== vocabHistoryID
-        );
-        setVocabLists(filteredLists);
-      } catch (error) {
-        Alert.alert("Error loading vocab lists", error.message);
+        const { data } = await apiClient.get<List[]>(`/api/users/${userID}/lists`);
+        setVocabLists(data);
+      } catch (e) {
+        Alert.alert("Error", "Failed to load lists");
       } finally {
         setLoading(false);
       }
     };
+    load();
+  }, [userID]);
 
-    loadVocabLists();
-  }, [userID, vocabHistoryID]);
+  const addToList = async (listId: number) => {
+  try {
+    // Option A
+    const res = await apiClient.put(`/api/users/${userID}/lists/${listId}/items/${currentWord.id}`);
 
-  const saveWordToList = async (chosenID) => {
-    try {
-      const responseCheck = await apiClient.get(
-        `/wordInList/check?userID=${userID}&listID=${chosenID}&word=${dailyWord}`
-      );
-      if (responseCheck.data.exists) {
-        Alert.alert(`This word is already in the list!`);
-        return;
-      }
-      const response = await apiClient.post(`/wordInList`, {
-        userID,
-        listID: chosenID,
-        word: dailyWord,
-        definition,
-      });
-
-      if (response.status === 201) {
-        Alert.alert(`Word saved to list!`);
-      } else {
-        Alert.alert("Failed to save word.");
-      }
-    } catch (error) {
-      Alert.alert("Error saving word:", error.message);
+    // axios is fine with 204 (no content)
+    if (res.status === 201) {
+      Alert.alert("Saved!", `Added "${currentWord.term}" to the list.`);
+    } else if (res.status === 204) {
+      Alert.alert("Already there", `"${currentWord.term}" was already in this list.`);
+    } else {
+      Alert.alert("Done", "Request completed.");
     }
-  };
+    navigation.goBack();
+  } catch (e: any) {
+    Alert.alert("Error", e?.message ?? "Failed to save word to list");
+  }
+};
 
-  const renderItem = ({ item }) => {
-    const backgroundColor = item.listID === selectedID ? "#aed6f1" : "#5dade2";
-    const color = item.listID === selectedID ? "black" : "white";
-
-    return (
-      <TouchableOpacity
-        onPress={() => {
-          setSelectedID(item.listID);
-          saveWordToList(item.listID);
-          navigation.goBack();
-        }}
-        style={[styles.item, { backgroundColor }]}
-      >
-        <Text style={[styles.listName, { color }]}>{item.listName}</Text>
-      </TouchableOpacity>
-    );
-  };
 
   return (
     <SafeAreaProvider>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>‹- Back</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.backButtonText}>&#8249;- Back</Text>
         </TouchableOpacity>
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>Select List to Add "{dailyWord}"</Text>
+          <Text style={styles.title}>Select List to Add “{currentWord.term}”</Text>
         </View>
         <View style={styles.rightContent} />
       </View>
@@ -104,8 +69,21 @@ export default function PickList({ route }) {
         ) : (
           <FlatList
             data={vocabLists}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.listID.toString()}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={({ item }) => {
+              const isSelected = item.id === selectedID;
+              return (
+                <TouchableOpacity
+                  style={[styles.item, { backgroundColor: isSelected ? "#aed6f1" : "#5dade2" }]}
+                  onPress={() => {
+                    setSelectedID(item.id);
+                    addToList(item.id);
+                  }}
+                >
+                  <Text style={[styles.listName, { color: isSelected ? "black" : "white" }]}>{item.name}</Text>
+                </TouchableOpacity>
+              );
+            }}
           />
         )}
       </SafeAreaView>
@@ -114,23 +92,12 @@ export default function PickList({ route }) {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    backgroundColor: "white",
-    borderBottomColor: "#ddd",
-    justifyContent: "space-between",
-  },
-  backButton: { padding: 8 },
-  backButtonText: { color: "blue" },
-  titleContainer: { flex: 1, alignItems: "center" },
-  title: { textAlign: "center", fontSize: 18, fontWeight: "bold" },
-  rightContent: { width: 50, alignItems: "flex-end" },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, backgroundColor: "white", borderBottomColor: '#ddd', justifyContent: 'space-between' },
+  backButton: { padding: 8 }, backButtonText: { color: "blue" },
+  titleContainer: { flex: 1, alignItems: 'center' }, title: { textAlign: "center", fontSize: 18, fontWeight: 'bold' },
+  rightContent: { width: 50, alignItems: 'flex-end' },
   container: { flex: 1, paddingHorizontal: 16 },
-  noListsText: { textAlign: "center", color: "#888", fontSize: 16 },
+  noListsText: { textAlign: "center", color: "#888", fontSize: 16, marginTop: 16 },
   item: { padding: 20, marginVertical: 8, marginHorizontal: 5 },
-  listName: { fontSize: 25, fontWeight: "bold" },
+  listName: { fontSize: 20, fontWeight: "bold" },
 });
