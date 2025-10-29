@@ -19,7 +19,7 @@ const LandingScreen = ({ route }) => {
     setLoading(true);
     try {
       const randomWord = wordList[Math.floor(Math.random() * wordList.length)];
-      const API_KEY = "your-dictionary-api-key"; // replace with your key
+      const API_KEY = "your-dictionary-api-key"; // replace with our key
       const API_URL = `https://www.dictionaryapi.com/api/v3/references/collegiate/json/${randomWord}?key=${API_KEY}`;
 
       const response = await fetch(API_URL);
